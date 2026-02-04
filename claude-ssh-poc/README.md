@@ -8,8 +8,10 @@ Proof of concept for OAuth authentication in containers using SSH port forwardin
 ┌─────────────────────────────────────────────────────────┐
 │ Container (SSH Daemon)                                  │
 │                                                          │
-│  Claude Code → Opens OAuth on localhost:34567          │
+│  Claude Code → Opens OAuth URL:                         │
+│    https://claude.ai/oauth?redirect_uri=localhost:34567 │
 │             → BROWSER env var calls wrapper             │
+│             → Wrapper extracts port from redirect_uri   │
 │             → Wrapper sends escape sequence             │
 │                \033]9999;browser-open;34567;URL\033\\   │
 └────────────────────────┬────────────────────────────────┘
@@ -19,10 +21,10 @@ Proof of concept for OAuth authentication in containers using SSH port forwardin
 │ Host Machine                                            │
 │                                                          │
 │  Host Script:                                           │
-│   1. Detects escape sequence                            │
+│   1. Detects escape sequence with port                  │
 │   2. Creates SSH port forward:                          │
 │      ssh -R 34567:localhost:34567 container             │
-│   3. Opens browser → http://localhost:34567             │
+│   3. Opens browser → OAuth URL                          │
 └─────────────────────────────────────────────────────────┘
          │
          └─→ Browser completes OAuth
@@ -49,7 +51,10 @@ make ssh
 ## How it works
 
 ### 1. Browser Wrapper (in container)
-- Parses URL and extracts port
+- Parses URL and extracts port from:
+  - Direct localhost URL: `http://localhost:34567/callback`
+  - Or from `redirect_uri` parameter: `https://claude.ai/oauth?redirect_uri=http%3A%2F%2Flocalhost%3A34567%2Fcallback`
+- URL decodes the redirect_uri if needed
 - Sends escape sequence: `\033]9999;browser-open;PORT;URL\033\\`
 - Exits with success
 
